@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# start a remote chromedriver session & push it to the background to save some time
+chromedriver &
+
+# set chromedriver location environment variable
+CHROMEDRIVER_REMOTE=http://localhost:9515
+
+# run the non wasm tests with cargo-leptos and the rest with a manually specified wasm target
+cargo watch -x "leptos test" -x "test --target=wasm32-unknown-unknown --features=hydrate"
