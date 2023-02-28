@@ -2,12 +2,13 @@
 #[tokio::main]
 async fn main() {
     use axum::{extract::Extension, routing::post, Router};
+    use hoops_client::app::{register_server_functions, App, AppProps};
+    use hoops_client::fileserv::file_and_error_handler;
     use leptos::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use start_axum::app::*;
-    use start_axum::fileserv::file_and_error_handler;
     use std::sync::Arc;
 
+    register_server_functions();
     simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
 
     // Setting get_configuration(None) means we'll be using cargo-leptos's env values
