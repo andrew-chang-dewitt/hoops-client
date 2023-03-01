@@ -4,9 +4,25 @@ async fn main() {
     use axum::{extract::Extension, routing::post, Router};
     use hoops_client::app::{register_server_functions, App, AppProps};
     use hoops_client::fileserv::file_and_error_handler;
-    use leptos::*;
+    use leptos::{ServerFnError, *};
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use std::sync::Arc;
+
+    let pool = SqlitePoolOptions::new()
+        .connect("sqlite:sessions.db")
+        .await
+        .map_err(|err| ServerFnError::ServerError(err.to_string()))
+        .expect("Could not make pool");
+    let session_config = SessionConfig::default().with_table_name("axum_sessions");
+    let auth_config = AuthConfig::<Uuid>::default();
+    let session_store =
+        SessionStore::<SessionSqlitePool>::new(Some(pool.clone().into()), session_config);
+    session_store.initiate().await.unwrap();
+
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .expect("could not migrate sessions db");
 
     register_server_functions();
     simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
@@ -26,6 +42,12 @@ async fn main() {
         .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
         .leptos_routes(leptos_options.clone(), routes, |cx| view! { cx, <App/> })
         .fallback(file_and_error_handler)
+        .layer(
+            AuthSessionLayer::<User, Uuid, SessionSqlitePool, SqlitePool>::new(Some(pool.clone()))
+                .with_config(auth_config),
+        )
+        .layer(SessionLayer::new(session_store))
+        .layer(Extension(pool))
         .layer(Extension(Arc::new(leptos_options)));
 
     // run our app with hyper

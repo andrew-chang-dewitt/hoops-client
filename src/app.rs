@@ -6,6 +6,7 @@ use leptos_router::{
     RoutesProps, A,
 };
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::leptos_server::create_server_action;
 
@@ -18,7 +19,6 @@ cfg_if! {
         use reqwest::Client;
         use leptos::use_context;
         use sqlx::SqlitePool;
-        use uuid::Uuid;
 
         pub type AuthSession = axum_sessions_auth::AuthSession<User, Uuid, SessionSqlitePool, SqlitePool>;
 
@@ -73,33 +73,21 @@ cfg_if! {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-struct User {}
+pub struct User {
+    user_id: Uuid,
+    token: Token,
+}
 
-#[component]
-pub fn App(cx: Scope) -> impl IntoView {
-    // Provides context that manages stylesheets, titles, meta tags, etc.
-    provide_meta_context(cx);
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct Token {
+    access_token: String,
+    token_type: TokenType,
+}
 
-    view! {
-        cx,
-
-        // injects a stylesheet into the document <head>
-        // id=leptos means cargo-leptos will hot-reload this stylesheet
-        <Stylesheet id="leptos" href="/pkg/start_axum.css"/>
-
-        // sets the document title
-        <Title text="Hoops | App"/>
-
-        // content for this welcome page
-        <Router>
-            <main>
-                <Routes>
-                    <Route path="" view=|cx| view! { cx, <HomePage/>}/>
-                    <Route path="/login" view=|cx| view! { cx, <Login/>}/>
-                </Routes>
-            </main>
-        </Router>
-    }
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+enum TokenType {
+    #[serde(alias = "bearer")]
+    Bearer,
 }
 
 #[server(Login, "/api")]
@@ -141,16 +129,31 @@ async fn login(cx: Scope) -> Result<(), ServerFnError> {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct Token {
-    access_token: String,
-    token_type: TokenType,
-}
+#[component]
+pub fn App(cx: Scope) -> impl IntoView {
+    // Provides context that manages stylesheets, titles, meta tags, etc.
+    provide_meta_context(cx);
 
-#[derive(Debug, Deserialize)]
-enum TokenType {
-    #[serde(alias = "bearer")]
-    Bearer,
+    view! {
+        cx,
+
+        // injects a stylesheet into the document <head>
+        // id=leptos means cargo-leptos will hot-reload this stylesheet
+        <Stylesheet id="leptos" href="/pkg/start_axum.css"/>
+
+        // sets the document title
+        <Title text="Hoops | App"/>
+
+        // content for this welcome page
+        <Router>
+            <main>
+                <Routes>
+                    <Route path="" view=|cx| view! { cx, <HomePage/>}/>
+                    <Route path="/login" view=|cx| view! { cx, <Login/>}/>
+                </Routes>
+            </main>
+        </Router>
+    }
 }
 
 /// Renders the login page of your application.
