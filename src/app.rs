@@ -14,89 +14,13 @@ use crate::components::input::{Input, InputProps, InputType};
 
 cfg_if! {
     if #[cfg(feature = "ssr")] {
-        use async_trait::async_trait;
-        use axum_sessions_auth::{Authentication, SessionSqlitePool};
         use reqwest::Client;
         use leptos::use_context;
-        use sqlx::SqlitePool;
-
-        pub type AuthSession = axum_sessions_auth::AuthSession<User, Uuid, SessionSqlitePool, SqlitePool>;
 
         pub fn register_server_functions() {
             _ = Login::register();
         }
-
-        pub fn pool(cx: Scope) -> Result<SqlitePool, ServerFnError> {
-            use_context::<SqlitePool>(cx)
-                .ok_or("Pool missing")
-                .map_err(|err| ServerFnError::ServerError(err.to_string()))
-        }
-
-        pub fn auth(cx: Scope) -> Result<AuthSession, ServerFnError> {
-            use_context::<AuthSession>(cx)
-                .ok_or("Auth session missing")
-                .map_err(|err| ServerFnError::ServerError(err.to_string()))
-        }
-
-        impl User {
-            pub async fn get(userid: Uuid, pool: &SqlitePool) -> Option<User> {
-                // get user by id from Sessions sqlite db
-                // if they aren't there, attempt to get them from the API
-                let sqluser = sqlx::query_as::<_, SqlUser>("Select * FROM user WHERE id = ?")
-                    .bind(userid)
-                    .fetch_one(pool)
-                    .await
-                    .ok()?;
-
-                dbg!(sqluser);
-
-                None
-            }
-        }
-
-        #[derive(Clone, Debug, sqlx::FromRow)]
-        struct SqlUser {
-            user_id: Uuid,
-            handle: String,
-            token_id: String,
-        }
-
-        #[derive(Clone, Debug, sqlx::FromRow)]
-        struct SqlToken {
-            acces_token: String,
-            token_type: String,
-        }
-
-        #[async_trait]
-        impl Authentication<User, Uuid, SqlitePool> for User {
-            async fn load_user(userid: Uuid, pool: Option<&SqlitePool>) -> Result<User, anyhow::Error> {
-                let pool = pool.unwrap();
-
-                User::get(userid, pool)
-                    .await
-                    .ok_or_else(|| anyhow::anyhow!("Cannot get user"))
-            }
-
-            fn is_authenticated(&self) -> bool {
-                // impl this by checking if a User has a valid Token
-                todo!()
-            }
-
-            fn is_active(&self) -> bool {
-                todo!()
-            }
-
-            fn is_anonymous(&self) -> bool {
-                todo!()
-            }
-        }
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct User {
-    user_id: Uuid,
-    token: Token,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,8 +37,6 @@ enum TokenType {
 
 #[server(Login, "/api")]
 async fn login(cx: Scope) -> Result<(), ServerFnError> {
-    let auth = auth(cx)?;
-
     // get form data from Request context
     match use_context::<leptos_axum::RequestParts>(cx) {
         Some(req) => {
@@ -149,10 +71,7 @@ async fn login(cx: Scope) -> Result<(), ServerFnError> {
                 })?;
 
                 // create new session w/ token in db so the token can be retrieved by a session cookie
-                let user = 
-                // then get session cookie & send to client
-                auth.login_user(token.user_id);
-                leptos_axum::redirect(cx, "/protected");
+                dbg!(token);
 
                 Ok(())
             }

@@ -7,11 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-anyhow = "1.0.69"
-async-trait = "0.1.64"
 axum = { version = "0.6.4", optional = true }
-axum_database_sessions = { version = "7.0.0", features = ["sqlite-rustls"], optional= true }
-axum_sessions_auth = { version = "7.0.0", features = ["sqlite-rustls"], optional= true }
 cfg-if = "1"
 console_error_panic_hook = "0.1"
 console_log = "0.2"
@@ -24,7 +20,6 @@ log = "0.4"
 reqwest = { version = "0.11.14", features = ["json"] }
 serde = { version = "1.0.152", features = ["derive"] }
 simple_logger = "4"
-sqlx = { version = "0.6.2", features = ["sqlite", "runtime-tokio-rustls"], optional = true }
 thiserror = "1.0.38"
 tokio = { version = "1.25.0", optional = true }
 tower = { version = "0.4.13", optional = true }
@@ -37,13 +32,10 @@ wasm-bindgen = "0.2"
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 ssr = [
     "dep:axum",
-    "dep:axum_sessions_auth",
-    "dep:axum_database_sessions",
     "dep:tokio",
     "dep:tower",
     "dep:tower-http",
     "dep:leptos_axum",
-    "dep:sqlx",
     "leptos/ssr",
     "leptos_meta/ssr",
     "leptos_router/ssr"
