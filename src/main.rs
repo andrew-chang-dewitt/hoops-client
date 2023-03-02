@@ -1,12 +1,18 @@
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
+    use std::sync::Arc;
+
     use axum::{extract::Extension, routing::post, Router};
-    use hoops_client::app::{register_server_functions, App, AppProps};
-    use hoops_client::fileserv::file_and_error_handler;
+    use axum_database_sessions::{SessionConfig, SessionLayer, SessionStore};
+    use axum_sessions_auth::{AuthConfig, AuthSessionLayer, SessionSqlitePool};
     use leptos::{ServerFnError, *};
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use std::sync::Arc;
+    use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
+    use uuid::Uuid;
+
+    use hoops_client::app::{register_server_functions, App, AppProps, User};
+    use hoops_client::fileserv::file_and_error_handler;
 
     let pool = SqlitePoolOptions::new()
         .connect("sqlite:sessions.db")

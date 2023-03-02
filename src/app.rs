@@ -27,23 +27,44 @@ cfg_if! {
         }
 
         pub fn pool(cx: Scope) -> Result<SqlitePool, ServerFnError> {
-            Ok(use_context::<SqlitePool>(cx)
+            use_context::<SqlitePool>(cx)
                 .ok_or("Pool missing")
-                .map_err(|err| ServerFnError::ServerError(err.to_string()))?)
+                .map_err(|err| ServerFnError::ServerError(err.to_string()))
         }
 
         pub fn auth(cx: Scope) -> Result<AuthSession, ServerFnError> {
-            Ok(use_context::<AuthSession>(cx)
+            use_context::<AuthSession>(cx)
                 .ok_or("Auth session missing")
-                .map_err(|err| ServerFnError::ServerError(err.to_string()))?)
+                .map_err(|err| ServerFnError::ServerError(err.to_string()))
         }
 
         impl User {
-            pub async fn get(userid: Uuid, pool: &SqlitePool) -> anyhow::Result<Option<User>> {
+            pub async fn get(userid: Uuid, pool: &SqlitePool) -> Option<User> {
                 // get user by id from Sessions sqlite db
                 // if they aren't there, attempt to get them from the API
-                todo!()
+                let sqluser = sqlx::query_as::<_, SqlUser>("Select * FROM user WHERE id = ?")
+                    .bind(userid)
+                    .fetch_one(pool)
+                    .await
+                    .ok()?;
+
+                dbg!(sqluser);
+
+                None
             }
+        }
+
+        #[derive(Clone, Debug, sqlx::FromRow)]
+        struct SqlUser {
+            user_id: Uuid,
+            handle: String,
+            token_id: String,
+        }
+
+        #[derive(Clone, Debug, sqlx::FromRow)]
+        struct SqlToken {
+            acces_token: String,
+            token_type: String,
         }
 
         #[async_trait]
@@ -52,7 +73,7 @@ cfg_if! {
                 let pool = pool.unwrap();
 
                 User::get(userid, pool)
-                    .await?
+                    .await
                     .ok_or_else(|| anyhow::anyhow!("Cannot get user"))
             }
 
@@ -92,6 +113,8 @@ enum TokenType {
 
 #[server(Login, "/api")]
 async fn login(cx: Scope) -> Result<(), ServerFnError> {
+    let auth = auth(cx)?;
+
     // get form data from Request context
     match use_context::<leptos_axum::RequestParts>(cx) {
         Some(req) => {
@@ -111,18 +134,44 @@ async fn login(cx: Scope) -> Result<(), ServerFnError> {
                         "Whoops, there was problem. Please try again.",
                     )))
                 })?;
-            // get token from response
-            let token: Token = res.json().await.or_else(|err| {
-                println!("Error processing API response: {err:#?}");
-                Err(ServerFnError::ServerError(String::from(
-                    "Whoops, there was problem. Please try again.",
-                )))
-            })?;
-            // create new session w/ token in db so the token can be retrieved by a session cookie
-            // then get session cookie & send to client
 
-            Ok(())
+            // handle response
+            let status = res.status();
+
+            // happy path
+            if status == 200 {
+                // get token from response
+                let token: Token = res.json().await.or_else(|err| {
+                    println!("Error processing API response: {err:#?}");
+                    Err(ServerFnError::ServerError(String::from(
+                        "Whoops, there was problem. Please try again.",
+                    )))
+                })?;
+
+                // create new session w/ token in db so the token can be retrieved by a session cookie
+                let user = 
+                // then get session cookie & send to client
+                auth.login_user(token.user_id);
+                leptos_axum::redirect(cx, "/protected");
+
+                Ok(())
+            }
+            // bad login info
+            else if status == 401 {
+                dbg!(&res);
+                Err(ServerFnError::ServerError(String::from(
+                    "Bad username or password. Please correct it and try again.",
+                )))
+            }
+            // everything else
+            else {
+                dbg!(&res);
+                Err(ServerFnError::ServerError(String::from(
+                    "An unknown error occurred.",
+                )))
+            }
         }
+
         None => Err(ServerFnError::ServerError(String::from(
             "No Request Received, this should never happen.",
         ))),
@@ -150,13 +199,14 @@ pub fn App(cx: Scope) -> impl IntoView {
                 <Routes>
                     <Route path="" view=|cx| view! { cx, <HomePage/>}/>
                     <Route path="/login" view=|cx| view! { cx, <Login/>}/>
+                    <Route path="/protected" view=|cx| view! { cx, <Protected/>}/>
                 </Routes>
             </main>
         </Router>
     }
 }
 
-/// Renders the login page of your application.
+/// Renders a home page
 #[component]
 fn HomePage(cx: Scope) -> impl IntoView {
     view! {
@@ -166,7 +216,7 @@ fn HomePage(cx: Scope) -> impl IntoView {
     }
 }
 
-/// Renders the login page of your application.
+/// Renders the login page
 #[component]
 fn Login(cx: Scope) -> impl IntoView {
     let login = create_server_action::<Login>(cx);
@@ -179,5 +229,15 @@ fn Login(cx: Scope) -> impl IntoView {
             <button type="submit">"Login"</button>
         </ActionForm>
 
+    }
+}
+
+/// Renders an example protected page
+#[component]
+fn Protected(cx: Scope) -> impl IntoView {
+    view! {
+        cx,
+        <h1>"Welcome user!"</h1>
+        <p>"This is a protected page"</p>
     }
 }
