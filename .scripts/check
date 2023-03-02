@@ -1,4 +1,3 @@
 #!/usr/bin/env bash
 
-# check with ssr enabled & disabled to check all compilation branches
-cargo watch -x check -x "check --features ssr"
+cargo watch -x clippy

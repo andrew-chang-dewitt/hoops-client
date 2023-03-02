@@ -14,8 +14,7 @@ use crate::components::input::{Input, InputProps, InputType};
 
 cfg_if! {
     if #[cfg(feature = "ssr")] {
-        use reqwest::Client;
-        use leptos::use_context;
+        use crate::auth::Token;
 
         pub fn register_server_functions() {
             _ = Login::register();
@@ -24,77 +23,29 @@ cfg_if! {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-struct Token {
-    access_token: String,
-    token_type: TokenType,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-enum TokenType {
-    #[serde(alias = "bearer")]
-    Bearer,
+pub struct User {
+    id: Uuid,
+    handle: String,
+    full_name: String,
+    preferred_name: String,
 }
 
 #[server(Login, "/api")]
 async fn login(cx: Scope) -> Result<(), ServerFnError> {
-    // get form data from Request context
-    match use_context::<leptos_axum::RequestParts>(cx) {
-        Some(req) => {
-            // form data is in request body
-            let body = req.body;
-            // then send to API verbatim to create a login token
-            let client = Client::new();
-            let res = client
-                .post("http://localhost:8000/token")
-                .header("content-type", "application/x-www-form-urlencoded")
-                .body(body)
-                .send()
-                .await
-                .or_else(|err| {
-                    println!("Error submitting API request: {err:#?}");
-                    Err(ServerFnError::ServerError(String::from(
-                        "Whoops, there was problem. Please try again.",
-                    )))
-                })?;
+    // get form data from request context
+    let req = use_context::<leptos_axum::RequestParts>(cx).ok_or(ServerFnError::ServerError(
+        String::from("An unknown error occurred."),
+    ))?;
+    let form_data = req.body;
 
-            // handle response
-            let status = res.status();
+    // get auth cookie
+    let auth = auth(cx)?;
+    let cookie = auth.get_session_cookie(form_data);
 
-            // happy path
-            if status == 200 {
-                // get token from response
-                let token: Token = res.json().await.or_else(|err| {
-                    println!("Error processing API response: {err:#?}");
-                    Err(ServerFnError::ServerError(String::from(
-                        "Whoops, there was problem. Please try again.",
-                    )))
-                })?;
+    // set cookie header in response
+    todo!();
 
-                // create new session w/ token in db so the token can be retrieved by a session cookie
-                dbg!(token);
-
-                Ok(())
-            }
-            // bad login info
-            else if status == 401 {
-                dbg!(&res);
-                Err(ServerFnError::ServerError(String::from(
-                    "Bad username or password. Please correct it and try again.",
-                )))
-            }
-            // everything else
-            else {
-                dbg!(&res);
-                Err(ServerFnError::ServerError(String::from(
-                    "An unknown error occurred.",
-                )))
-            }
-        }
-
-        None => Err(ServerFnError::ServerError(String::from(
-            "No Request Received, this should never happen.",
-        ))),
-    }
+    // Ok(())
 }
 
 #[component]
