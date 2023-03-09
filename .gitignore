@@ -13,5 +13,5 @@ end2end/playwright-report/
 playwright/.cache/
 
 # vim files
-.swp
-.swo
+**/*.swp
+**/*.swo
