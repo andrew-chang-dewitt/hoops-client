@@ -1,8 +1,5 @@
 use cfg_if::cfg_if;
-use leptos::{
-    component, create_resource, server, server_fn::ServerFn, server_fn::ServerFnError, view,
-    IntoView, Scope, SignalGet,
-};
+use leptos::*;
 use leptos_meta::*;
 use leptos_router::{
     AProps, ActionForm, ActionFormProps, Route, RouteProps, Router, RouterProps, Routes,

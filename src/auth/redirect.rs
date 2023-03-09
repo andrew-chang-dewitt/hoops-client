@@ -1,10 +1,10 @@
 use cfg_if::cfg_if;
-use leptos::{component, create_resource, create_server_action, server, view, Children, IntoView, Scope, SignalGet, server_fn::ServerFnError};
+use leptos::*;
 
+use crate::app::User;
 
 cfg_if! {
     if #[cfg(feature = "ssr")] {
-        use crate::app::User;
         use crate::auth::is_logged_in;
     }
 }
@@ -21,15 +21,15 @@ cfg_if! {
 pub fn AuthGuard(cx: Scope, children: Children) -> impl IntoView {
     let check_logged_in_action = create_server_action::<CheckLoggedIn>(cx);
     let checking_is_logged_in = create_resource(
-        cx, 
-        move || check_logged_in_action.version().get(), 
-        move |_| check_logged_in(cx)
+        cx,
+        move || check_logged_in_action.version().get(),
+        move |_| check_logged_in(cx),
     );
     let is_logged_in = move || checking_is_logged_in.read(cx);
 
     match is_logged_in() {
         Some(Ok(maybe_user)) => {
-            if let Some(user) = maybe_user {
+            if let Some(_) = maybe_user {
                 // render children if logged in
                 view! {
                     cx,
@@ -41,26 +41,32 @@ pub fn AuthGuard(cx: Scope, children: Children) -> impl IntoView {
                 view! {
                     cx,
                     <LoggedOut msg=String::from( "you have been logged out" ) />
-                }.into_view(cx)
+                }
+                .into_view(cx)
             }
         }
         // redirect to login page w/ "an error occurred, please log in" message on error
-        Some(Err(err)) => 
-                view! {
-                    cx,
-                    <LoggedOut msg=String::from( "an error occurred, please log in" ) />
-                }.into_view(cx)
-,
+        Some(Err(err)) => {
+            log::error!("Error checking if user is logged in: {err:#?}");
+
+            view! {
+                cx,
+                <LoggedOut msg=String::from( "an error occurred, please log in" ) />
+            }
+            .into_view(cx)
+        }
         // resource fetcher still pending
-        _ => todo!(),
+        _ => view! {
+            cx,
+            <p>"Loading..."</p>
+        }
+        .into_view(cx),
     }
 }
 
 #[component]
 fn LoggedOut(cx: Scope, msg: String) -> impl IntoView {
-    create_server_action::<ForceLogout>(cx).dispatch(ForceLogout {
-        msg,
-    });
+    create_server_action::<ForceLogout>(cx).dispatch(ForceLogout { msg });
 
     view! {
         cx,

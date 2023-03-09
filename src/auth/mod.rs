@@ -20,7 +20,7 @@ cfg_if! {
     if #[cfg(feature = "ssr")] {
         use axum::body::Bytes;
         use http::header::{COOKIE, HeaderValue };
-        use leptos::{server, use_context, server_fn::ServerFnError, Scope};
+        use leptos::{use_context, server_fn::ServerFnError, Scope};
         use leptos_axum::RequestParts;
         use reqwest::Client;
 
