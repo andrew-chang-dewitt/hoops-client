@@ -9,7 +9,6 @@ async fn main() {
 
     use hoops_client::{
         app::{register_server_functions, App, AppProps},
-        auth::AuthLayer,
         fileserv::file_and_error_handler,
     };
 
@@ -31,7 +30,6 @@ async fn main() {
         .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
         .leptos_routes(leptos_options.clone(), routes, |cx| view! { cx, <App/> })
         .fallback(file_and_error_handler)
-        .layer(AuthLayer::new())
         .layer(Extension(Arc::new(leptos_options)));
 
     // run our app with hyper

@@ -1,4 +1,7 @@
+pub mod redirect;
+
 use cfg_if::cfg_if;
+use http::header::GetAll;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -15,143 +18,153 @@ pub enum TokenType {
 
 cfg_if! {
     if #[cfg(feature = "ssr")] {
-        // use std::{fmt, task::{Context, Poll}};
-
-        // use tower::Layer;
-        // use tower_service::Service;
-        use axum::{body::Bytes, http::header::{COOKIE, SET_COOKIE}};
-        use http::header::HeaderValue;
-        use leptos::{use_context, ServerFnError, Scope};
+        use axum::body::Bytes;
+        use http::header::{COOKIE, HeaderValue };
+        use leptos::{server, use_context, server_fn::ServerFnError, Scope};
+        use leptos_axum::RequestParts;
         use reqwest::Client;
 
         use crate::app::User;
 
-        pub fn auth(cx: Scope) -> Result<AuthSession, ServerFnError> {
-            use_context::<AuthSession>(cx)
-                .ok_or("Auth session missing")
-                .map_err(|err| {
-                    println!("{err}");
-                    ServerFnError::ServerError(err.to_string())
-                })
-        }
+        /// Check if the user is logged in by using a session auth cookie found in the Scope's
+        /// RequestParts value. Returns Ok(Some(user)) if logged in, Ok(None) if not logged in, &
+        /// Err(...) if there's any errors are encountered along the way.
+        pub async fn is_logged_in(cx: Scope) -> Result<Option<User>, ServerFnError> {
+            let req = match use_context::<RequestParts>(cx) {
+                Some(req) => req,      // actual user request
+                None => return Ok(None), // no request, building routes in main
+            };
+            let cookies = req.headers.get_all(COOKIE);
+            println!("cookies: {cookies:#?}");
 
-        #[derive(Clone)]
-        pub struct AuthSession {
-            pub current_user: Option<User>,
-            pub token: Option<Token>,
-        }
-
-        impl AuthSession {
-            pub async fn get_session_cookie(&self, form_data: Bytes) -> Result<HeaderValue, ServerFnError> {
-                // get token from api
-                let client = Client::new();
-                let res = client
-                    .post("http://localhost:8000/token")
-                    .header("content-type", "application/x-www-form-urlencoded")
-                    .body(form_data)
-                    .send()
-                    .await
-                    .map_err(|err| {
-                        // log actual error to server console
-                        println!("Error submitting API request: {err:#?}");
-                        // obfuscate error sent to client
-                        ServerFnError::ServerError(String::from(
-                                "Whoops, there was problem. Please try again.",
-                        ))
-                    })?;
-
-                // handle response
-                let status = res.status();
-
-                // happy path
-                if status == 200 {
-                    // get token from response
-                    self.token = Some( res.json().await.map_err(|err| {
-                        println!("Error processing API response: {err:#?}");
-                        ServerFnError::ServerError(String::from(
-                                "Whoops, there was problem. Please try again.",
-                        ))
-                    })? );
-                    // get user with token
-                    // TODO: not sure how I want to do this. Maybe it's time to refactor API calls
-                    // into another module? Should probably just impl something super ugly inline
-                    // here then refactor that plus the above call into the new api module.
-
-                    // stuff token in cookie
-                    let cookie = HeaderValue::from_str(
-                        &format!("user_id={}; jwt={}; Path=/; HttpOnly", self.current_user.id, token.access_token)
-                    ).map_err(|err| {
-                        println!("Unable to create cookie from token:");
-                        dbg!(token);
-                        dbg!(err);
-                        ServerFnError::ServerError(String::from("An unknown error occurred."))
-                    })?;
-                    dbg!(&cookie);
-
-                    // send cookie to client in response
-
-                    Ok(cookie)
-                }
-                // unauthorized
-                else if status == 401 {
-                    Err(ServerFnError::ServerError(String::from(
-                        "Bad username or password. Please correct it and try again.",
-                    )))
-                }
-                // everything else
-                else {
-                    dbg!(&res);
-                    Err(ServerFnError::ServerError(String::from(
-                        "An unknown error occurred.",
-                    )))
-                }
+            match get_token(cookies) {
+                Ok(None) => Ok(None),                     // no token == not logged in
+                Ok(Some(token)) => get_user(token).await, // if there is a token, try to get the user
+                                                          // info to find out if they're logged in
+                Err(err) => Err(err),
             }
         }
 
-        // #[derive(Clone)]
-        // pub struct AuthLayer {}
+        fn get_token(cookies: GetAll<'_, HeaderValue>) -> Result<Option<String>, ServerFnError> {
+            for cookie in cookies.iter() {
+                match cookie.to_str() {
+                    Ok(cookie_str) => {
+                        if let Some(token) = get_cookie_value(cookie_str, "jwt") {
+                            // only return early if there's a jwt value in the cookie, otherwise
+                            // keep iterating through the remaining cookies
+                            return Ok(Some(token));
+                        }
+                    },
+                    Err(err) => return Err(ServerFnError::ServerError(err.to_string())),
+                }
+            }
 
-        // impl AuthLayer {
-        //     pub fn new() -> Self {
-        //         Self {}
-        //     }
-        // }
+            // if none of the cookies contain a jwt value, return None
+            Ok(None)
+        }
 
-        // impl Default for AuthLayer {
-        //     fn default() -> Self {
-        //         Self::new()
-        //     }
-        // }
+        fn get_cookie_value(cookie: &str, key: &str) -> Option<String> {
+            // assumes cookie key/value pairs are delimited by `;` & searches for a given key
+            cookie.split(';').find_map(|term| {
+                let (k, v) = term.split_once('=').unwrap_or_default();
+                if k.trim().eq(key) && !v.trim().is_empty() {
+                    Some(v.to_string())
+                } else {
+                    None
+                }
+            })
+        }
 
-        // impl<S> Layer<S> for AuthLayer {
-        //     type Service = AuthService<S>;
+        pub async fn create_session_cookie(form_data: Bytes) -> Result<HeaderValue, ServerFnError> {
+            // get token from api
+            let client = Client::new();
+            let res = client
+                .post("http://localhost:8000/token")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(form_data)
+                .send()
+                .await
+                .map_err(|err| {
+                    // log actual error to server console
+                    log::error!("Error submitting API request: {err:#?}");
+                    // obfuscate error sent to client
+                    ServerFnError::ServerError(String::from(
+                            "Whoops, there was problem. Please try again.",
+                    ))
+                })?;
 
-        //     fn layer(&self, service: S) -> Self::Service {
-        //         AuthService { service }
-        //     }
-        // }
+            // handle response
+            let status = res.status();
 
-        // #[derive(Clone)]
-        // pub struct AuthService<S> {
-        //     service: S,
-        // }
+            // happy path
+            if status == 200 {
+                // get token from response
+                let token: Token = res.json().await.map_err(|err| {
+                    log::error!("Error processing API response: {err:#?}");
+                    ServerFnError::ServerError(String::from(
+                            "Whoops, there was problem. Please try again.",
+                    ))
+                })?;
 
-        // impl<S, Request> Service<Request> for AuthService<S>
-        // where
-        //     S: Service<Request>,
-        //     Request: fmt::Debug,
-        // {
-        //     type Response = S::Response;
-        //     type Error = S::Error;
-        //     type Future = S::Future;
+                // stuff token in cookie
+                let cookie = HeaderValue::from_str(
+                    &format!("jwt={}; Path=/; HttpOnly", token.access_token)
+                ).map_err(|err| {
+                    log::error!("Unable to create cookie from token.\ntoken: {token:#?}\nerror: {err:#?}");
+                    ServerFnError::ServerError(String::from("An unknown error occurred."))
+                })?;
 
-        //     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        //         self.service.poll_ready(cx)
-        //     }
+                // return cookie
+                Ok(cookie)
+            }
+            // unauthorized
+            else if status == 401 {
+                Err(ServerFnError::ServerError(String::from(
+                    "Bad username or password. Please correct it and try again.",
+                )))
+            }
+            // everything else
+            else {
+                dbg!(&res);
+                Err(ServerFnError::ServerError(String::from(
+                    "An unknown error occurred.",
+                )))
+            }
+        }
 
-        //     fn call(&mut self, request: Request) -> Self::Future {
-        //         self.service.call(request)
-        //     }
-        // }
+        pub async fn get_user(token: String) -> Result<Option<User>, ServerFnError> {
+            let client = Client::new();
+            let res = client.get("http://localhost:8000/user")
+                .header("Authorization", format!("Bearer {token}"))
+                .send()
+                .await
+                .map_err(|err| {
+                    // log actual error to server console
+                    log::error!("Error submitting API request: {err:#?}");
+                    // obfuscate error sent to client
+                    ServerFnError::ServerError(String::from(
+                            "Whoops, there was problem. Please try again.",
+                    ))
+                })?;
+            println!("validation response: {res:#?}");
+
+            // handle validation response
+            let status_code = res.status();
+
+            if status_code == 200 { // valid token
+                let user: User = res.json().await.map_err(|err| {
+                    // log error internally
+                    log::error!("{err}");
+                    ServerFnError::ServerError(String::from("Error parsing user data"))
+                })?;
+                println!("user: {user:#?}");
+
+                Ok(Some(user))
+            } else if status_code == 401 { // unauthorized
+                Ok(None)
+            } else {
+                Err(ServerFnError::ServerError(String::from("An unknown error occurred.")))
+            }
+        }
     }
 }

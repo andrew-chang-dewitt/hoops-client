@@ -2,11 +2,11 @@ TO DO
 ===
 
 - [x] experiment w/ axum-auth-sessions
-- [ ] roll own cookie-auth context util
-  - [/] learn how to set headers using axum in response sent by server fn
+- [ ] roll own cookie-auth util
+  - [x] learn how to set headers using axum in response sent by server fn
         - get response object from context in server fn:
           https://github.com/Indrazar/auth-sessions-example/blob/14817a048995a96ef1105abf502ad3e2b923b302/src/cookies.rs#L38
-  - [ ] stuff token & user id into cookie & set as httponly in response sent by successful `login` fn
+  - [x] stuff token into cookie & set as httponly in response sent by successful `login` fn
         - this approach keeps the server stateless and lets the API still manage token validity time?
         - set cookie header on response in server fn:
           https://github.com/Indrazar/auth-sessions-example/blob/14817a048995a96ef1105abf502ad3e2b923b302/src/cookies.rs#L49
