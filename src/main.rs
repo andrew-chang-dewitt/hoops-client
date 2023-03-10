@@ -8,11 +8,16 @@ async fn main() {
     use leptos_axum::{generate_route_list, LeptosRoutes};
 
     use hoops_client::{
-        app::{register_server_functions, App, AppProps},
+        app::{App, AppProps, Login},
+        auth::redirect::{CheckLoggedIn, ForceLogout},
         fileserv::file_and_error_handler,
     };
 
-    register_server_functions();
+    // register server functions
+    _ = Login::register();
+    _ = CheckLoggedIn::register();
+    _ = ForceLogout::register();
+
     simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
 
     // Setting get_configuration(None) means we'll be using cargo-leptos's env values

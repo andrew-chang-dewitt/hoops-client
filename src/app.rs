@@ -1,16 +1,18 @@
 use cfg_if::cfg_if;
-use leptos::*;
+use leptos::{
+    component, create_server_action, server,
+    server_fn::{self, ServerFn, ServerFnError},
+    view, IntoView, Scope,
+};
 use leptos_meta::*;
 use leptos_router::{
     AProps, ActionForm, ActionFormProps, Route, RouteProps, Router, RouterProps, Routes,
     RoutesProps, A,
 };
-use reqwest::Client;
+// use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::to_string;
+// use serde_json::to_string;
 use uuid::Uuid;
-
-use crate::leptos_server::create_server_action;
 
 use crate::auth::redirect::{AuthGuard, AuthGuardProps};
 use crate::components::input::{Input, InputProps, InputType};
@@ -22,12 +24,6 @@ cfg_if! {
         use leptos_axum::{redirect, RequestParts };
 
         use crate::auth::{ create_session_cookie, redirect::{CheckLoggedIn, ForceLogout } };
-
-        pub fn register_server_functions() {
-            _ = Login::register();
-            _ = CheckLoggedIn::register();
-            _ = ForceLogout::register();
-        }
     }
 }
 
