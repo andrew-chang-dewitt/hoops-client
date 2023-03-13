@@ -54,6 +54,7 @@ async fn login(cx: Scope) -> Result<(), ServerFnError> {
             ServerFnError::ServerError(err.to_string())
         })?;
     res.append_header(SET_COOKIE, cookie);
+    dbg!(&res);
     redirect(cx, "/protected");
 
     Ok(())

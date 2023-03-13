@@ -132,6 +132,17 @@ cfg_if! {
             }
         }
 
+        /// Log user out by getting a value to send w/ Set-Cookie to remove token data from cookie &
+        /// telling client to expire session cookie.
+        pub fn create_logout_cookie() -> Result<HeaderValue, ServerFnError> {
+            HeaderValue::from_str(
+                "jwt=''; Path=/; HttpOnly; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0"
+            ).map_err(|err| {
+                log::error!("Unable to create logout cookie value.\nerror: {err:#?}");
+                ServerFnError::ServerError(String::from("An unknown error occurred."))
+            })
+        }
+
         pub async fn get_user(token: String) -> Result<Option<User>, ServerFnError> {
             let client = Client::new();
             let res = client.get("http://localhost:8000/user")
