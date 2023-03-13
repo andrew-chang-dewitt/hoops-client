@@ -35,7 +35,7 @@ cfg_if! {
                 None => return Ok(None), // no request, building routes in main
             };
             let cookies = req.headers.get_all(COOKIE);
-            println!("cookies: {cookies:#?}");
+            log::trace!("cookies: {cookies:#?}");
 
             match get_token(cookies) {
                 Ok(None) => Ok(None),                     // no token == not logged in
@@ -146,7 +146,7 @@ cfg_if! {
                             "Whoops, there was problem. Please try again.",
                     ))
                 })?;
-            println!("validation response: {res:#?}");
+            log::trace!("validation response: {res:#?}");
 
             // handle validation response
             let status_code = res.status();
@@ -157,7 +157,7 @@ cfg_if! {
                     log::error!("{err}");
                     ServerFnError::ServerError(String::from("Error parsing user data"))
                 })?;
-                println!("user: {user:#?}");
+                log::trace!("user: {user:#?}");
 
                 Ok(Some(user))
             } else if status_code == 401 { // unauthorized

@@ -9,14 +9,13 @@ async fn main() {
 
     use hoops_client::{
         app::{App, AppProps, Login},
-        auth::redirect::{CheckLoggedIn, ForceLogout},
+        auth::redirect::CheckLoggedIn,
         fileserv::file_and_error_handler,
     };
 
     // register server functions
     _ = Login::register();
     _ = CheckLoggedIn::register();
-    _ = ForceLogout::register();
 
     simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
 
