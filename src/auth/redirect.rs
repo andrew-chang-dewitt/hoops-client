@@ -34,7 +34,6 @@ pub fn AuthGuard(cx: Scope, children: ChildrenFn) -> impl IntoView {
         move |_| check_logged_in(cx),
     );
 
-    let (err_msg, set_err_msg) = create_signal(cx, String::new());
     let check_result = move || {
         checking_is_logged_in.read(cx).map(|n| {
             log::trace!("check_logged_in result: {n:#?}");
@@ -49,22 +48,8 @@ pub fn AuthGuard(cx: Scope, children: ChildrenFn) -> impl IntoView {
                 // User is not logged in, redirect to login page w/ "you have been logged out" error
                 // message if not
                 Ok(None) => {
-                    set_err_msg(String::from("you have been logged out"));
-                    let err_msg_str = &err_msg();
-                    let err_msg_encoded = encode(err_msg_str);
-                    let path = format!("{LOGIN_PATH}?{err_msg_encoded}");
-
-                    // redirect using axum if ssr, or leptos_router if client
-                    cfg_if! {
-                        if #[cfg(feature = "ssr")] {
-                            redirect(cx, &path);
-                        } else {
-                            let navigate = use_navigate(cx);
-                            if let Err(err) = navigate(&path, NavigateOptions::default()) {
-                                log::error!("There was an error redirecting to the login page: {err:#?}");
-                            };
-                        }
-                    }
+                    let err_msg = "you have been logged out";
+                    redirect_to_login(cx, err_msg);
 
                     // render a fallback view to satisfy type checker on match arms & return
                     // results
@@ -78,7 +63,8 @@ pub fn AuthGuard(cx: Scope, children: ChildrenFn) -> impl IntoView {
                 // occurred, please log in" message on error
                 Err(err) => {
                     log::error!("Error checking if user is logged in: {err:#?}");
-                    set_err_msg(String::from("an error occurred, please log in"));
+                    let err_msg = "an error occurred, please log in";
+                    redirect_to_login(cx, err_msg);
 
                     // render a fallback view to satisfy type checker on match arms & return
                     // results
@@ -100,24 +86,24 @@ pub fn AuthGuard(cx: Scope, children: ChildrenFn) -> impl IntoView {
     }
 }
 
-#[component]
-fn LoggedOut(cx: Scope, msg: String) -> impl IntoView {
-    create_server_action::<ForceLogout>(cx).dispatch(ForceLogout { msg });
+fn redirect_to_login(cx: Scope, msg: &str) {
+    let err_msg_encoded = encode(msg);
+    let path = format!("{LOGIN_PATH}?{err_msg_encoded}");
 
-    view! {
-        cx,
-        <p>"Unauthorized"</p>
+    // redirect using axum if ssr, or leptos_router if client
+    cfg_if! {
+        if #[cfg(feature = "ssr")] {
+            redirect(cx, &path);
+        } else {
+            let navigate = use_navigate(cx);
+            if let Err(err) = navigate(&path, NavigateOptions::default()) {
+                log::error!("There was an error redirecting to the login page: {err:#?}");
+            };
+        }
     }
-    .into_view(cx)
 }
 
 #[server(CheckLoggedIn, "/api")]
 pub async fn check_logged_in(cx: Scope) -> Result<Option<User>, ServerFnError> {
     is_logged_in(cx).await
-}
-
-#[server(ForceLogout, "/api")]
-pub async fn force_logout(cx: Scope, msg: String) -> Result<(), ServerFnError> {
-    log::info!("Forcing logout: {msg}...");
-    todo!()
 }
