@@ -1,6 +1,6 @@
 use cfg_if::cfg_if;
 use leptos::{
-    component, create_resource, create_server_action, create_signal, server,
+    component, create_resource, create_server_action, server,
     server_fn::{self, ServerFn, ServerFnError},
     view, ChildrenFn, IntoView, Scope, SignalGet, Suspense, SuspenseProps,
 };
@@ -88,7 +88,7 @@ pub fn AuthGuard(cx: Scope, children: ChildrenFn) -> impl IntoView {
 
 fn redirect_to_login(cx: Scope, msg: &str) {
     let err_msg_encoded = encode(msg);
-    let path = format!("{LOGIN_PATH}?{err_msg_encoded}");
+    let path = format!("{LOGIN_PATH}?msg={err_msg_encoded}");
 
     // redirect using axum if ssr, or leptos_router if client
     cfg_if! {

@@ -2,12 +2,12 @@ use cfg_if::cfg_if;
 use leptos::{
     component, create_server_action, server,
     server_fn::{self, ServerFn, ServerFnError},
-    view, IntoView, Scope,
+    view, IntoView, Params, Scope,
 };
 use leptos_meta::*;
 use leptos_router::{
-    AProps, ActionForm, ActionFormProps, Route, RouteProps, Router, RouterProps, Routes,
-    RoutesProps, A,
+    use_query, AProps, ActionForm, ActionFormProps, IntoParam, Params, Route, RouteProps, Router,
+    RouterProps, Routes, RoutesProps, A,
 };
 // use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -100,10 +100,13 @@ fn HomePage(cx: Scope) -> impl IntoView {
 /// Renders the login page
 #[component]
 fn Login(cx: Scope) -> impl IntoView {
+    let params = use_query::<LoginParams>(cx);
+    let msg = move || params().map_or_else(|err| Some(err.to_string()), |p| p.msg);
     let login = create_server_action::<Login>(cx);
 
     view! {
         cx,
+        <div>{msg()}</div>
         <ActionForm action=login>
             <Input name={ String::from( "username" ) } label={ String::from( "Username:" ) }/>
             <Input name={ String::from( "password" ) } label={ String::from( "Password:" ) } input_type=InputType::Password />
@@ -111,6 +114,12 @@ fn Login(cx: Scope) -> impl IntoView {
         </ActionForm>
 
     }
+}
+
+#[derive(Params, PartialEq, Clone, Debug)]
+struct LoginParams {
+    #[params]
+    msg: Option<String>,
 }
 
 /// Renders an example protected page
