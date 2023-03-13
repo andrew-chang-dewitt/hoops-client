@@ -4,19 +4,23 @@ use leptos::{
     server_fn::{self, ServerFn, ServerFnError},
     view, ChildrenFn, IntoView, Scope, SignalGet, Suspense, SuspenseProps,
 };
+use urlencoding::encode;
 
 use crate::app::User;
 
 cfg_if! {
     if #[cfg(feature = "ssr")] {
+        use leptos_axum::redirect;
         use crate::auth::is_logged_in;
     }
 }
 cfg_if! {
     if #[cfg(not(feature = "ssr"))] {
-        use leptos_router::NavigateOptions;
+        use leptos_router::{use_navigate, NavigateOptions };
     }
 }
+
+const LOGIN_PATH: &str = "/login";
 
 /// This component is used to wrap any other component that shouldn't be rendered unless the user
 /// is logged in with a valid token. If the user is not logged in, they should be redirected to the
@@ -33,8 +37,10 @@ pub fn AuthGuard(cx: Scope, children: ChildrenFn) -> impl IntoView {
     let (err_msg, set_err_msg) = create_signal(cx, String::new());
     let check_result = move || {
         checking_is_logged_in.read(cx).map(|n| {
+            log::trace!("check_logged_in result: {n:#?}");
+
             match n {
-                // User is logged in
+                // User is logged in, ok to render children
                 Ok(Some(_)) => view! {
                     cx,
                     { children(cx) }
@@ -44,7 +50,24 @@ pub fn AuthGuard(cx: Scope, children: ChildrenFn) -> impl IntoView {
                 // message if not
                 Ok(None) => {
                     set_err_msg(String::from("you have been logged out"));
+                    let err_msg_str = &err_msg();
+                    let err_msg_encoded = encode(err_msg_str);
+                    let path = format!("{LOGIN_PATH}?{err_msg_encoded}");
 
+                    // redirect using axum if ssr, or leptos_router if client
+                    cfg_if! {
+                        if #[cfg(feature = "ssr")] {
+                            redirect(cx, &path);
+                        } else {
+                            let navigate = use_navigate(cx);
+                            if let Err(err) = navigate(&path, NavigateOptions::default()) {
+                                log::error!("There was an error redirecting to the login page: {err:#?}");
+                            };
+                        }
+                    }
+
+                    // render a fallback view to satisfy type checker on match arms & return
+                    // results
                     view! {
                         cx,
                         <>"Unauthorized"</>
@@ -57,6 +80,8 @@ pub fn AuthGuard(cx: Scope, children: ChildrenFn) -> impl IntoView {
                     log::error!("Error checking if user is logged in: {err:#?}");
                     set_err_msg(String::from("an error occurred, please log in"));
 
+                    // render a fallback view to satisfy type checker on match arms & return
+                    // results
                     view! {
                         cx,
                         <>"Unauthorized"</>
