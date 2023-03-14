@@ -50,7 +50,7 @@ pub fn AuthGuard(cx: Scope, children: ChildrenFn) -> impl IntoView {
                 // User is not logged in, redirect to login page w/ "you have been logged out" error
                 // message if not
                 Ok(None) => {
-                    let err_msg = String::from("you have been logged out");
+                    let err_msg = String::from("You have been logged out, please log in again.");
 
                     // render a fallback view to satisfy type checker on match arms & return
                     // results
@@ -64,7 +64,7 @@ pub fn AuthGuard(cx: Scope, children: ChildrenFn) -> impl IntoView {
                 // occurred, please log in" message on error
                 Err(err) => {
                     log::error!("Error checking if user is logged in: {err:#?}");
-                    let err_msg = String::from("an error occurred, please log in");
+                    let err_msg = String::from("An error occurred, please try again.");
 
                     // render a fallback view to satisfy type checker on match arms & return
                     // results
