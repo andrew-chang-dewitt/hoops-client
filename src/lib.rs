@@ -1,8 +1,9 @@
 pub mod app;
 pub mod auth;
-pub mod components;
+mod components;
 pub mod error_template;
 pub mod fileserv;
+pub mod routes;
 
 use cfg_if::cfg_if;
 use leptos::*;

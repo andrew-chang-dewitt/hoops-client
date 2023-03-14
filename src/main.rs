@@ -8,15 +8,13 @@ async fn main() {
     use leptos_axum::{generate_route_list, LeptosRoutes};
 
     use hoops_client::{
-        app::{App, AppProps, Login},
-        auth::redirect::{CheckLoggedIn, DestroyCookie},
+        app::{App, AppProps},
         fileserv::file_and_error_handler,
     };
 
     // register server functions
-    _ = Login::register();
-    _ = CheckLoggedIn::register();
-    _ = DestroyCookie::register();
+    _ = hoops_client::routes::register_server_fns();
+    _ = hoops_client::auth::register_server_fns();
 
     simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
 

@@ -1,8 +1,12 @@
-pub mod redirect;
-
 use cfg_if::cfg_if;
 use http::header::GetAll;
+use leptos::ServerFn;
 use serde::{Deserialize, Serialize};
+
+mod guard;
+pub use guard::{AuthGuard, AuthGuardProps};
+mod logout;
+pub use logout::{Logout, LogoutProps};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Token {
@@ -25,6 +29,12 @@ cfg_if! {
         use reqwest::Client;
 
         use crate::app::User;
+
+        pub fn register_server_fns() -> Result<(), ServerFnError> {
+            guard::CheckLoggedIn::register()?;
+            logout::DestroyCookie::register()?;
+            Ok(())
+        }
 
         /// Check if the user is logged in by using a session auth cookie found in the Scope's
         /// RequestParts value. Returns Ok(Some(user)) if logged in, Ok(None) if not logged in, &
