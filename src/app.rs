@@ -1,6 +1,18 @@
-use leptos::*;
+use leptos::{component, view, IntoView, Scope};
 use leptos_meta::*;
-use leptos_router::*;
+use leptos_router::{Router, RouterProps};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use crate::routes::{Routes, RoutesProps};
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct User {
+    id: Uuid,
+    handle: String,
+    full_name: String,
+    preferred_name: String,
+}
 
 #[component]
 pub fn App(cx: Scope) -> impl IntoView {
@@ -12,31 +24,16 @@ pub fn App(cx: Scope) -> impl IntoView {
 
         // injects a stylesheet into the document <head>
         // id=leptos means cargo-leptos will hot-reload this stylesheet
-        <Stylesheet id="leptos" href="/pkg/start-axum.css"/>
+        <Stylesheet id="leptos" href="/pkg/start_axum.css"/>
 
         // sets the document title
-        <Title text="Welcome to Leptos"/>
+        <Title text="Hoops | App"/>
 
         // content for this welcome page
         <Router>
             <main>
-                <Routes>
-                    <Route path="" view=|cx| view! { cx, <HomePage/> }/>
-                </Routes>
+                <Routes />
             </main>
         </Router>
-    }
-}
-
-/// Renders the home page of your application.
-#[component]
-fn HomePage(cx: Scope) -> impl IntoView {
-    // Creates a reactive value to update the button
-    let (count, set_count) = create_signal(cx, 0);
-    let on_click = move |_| set_count.update(|count| *count += 1);
-
-    view! { cx,
-        <h1>"Welcome to Leptos!"</h1>
-        <button on:click=on_click>"Click Me: " {count}</button>
     }
 }

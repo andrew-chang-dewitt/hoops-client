@@ -1,12 +1,20 @@
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
+    use std::sync::Arc;
+
     use axum::{extract::Extension, routing::post, Router};
     use leptos::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use start_axum::app::*;
-    use start_axum::fileserv::file_and_error_handler;
-    use std::sync::Arc;
+
+    use hoops_client::{
+        app::{App, AppProps},
+        fileserv::file_and_error_handler,
+    };
+
+    // register server functions
+    _ = hoops_client::routes::register_server_fns();
+    _ = hoops_client::auth::register_server_fns();
 
     simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
 

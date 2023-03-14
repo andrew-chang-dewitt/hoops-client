@@ -1,5 +1,5 @@
 [package]
-name = "start-axum"
+name = "hoops-client"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,37 +8,32 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.6.4", optional = true }
+cfg-if = "1"
 console_error_panic_hook = "0.1"
 console_log = "0.2"
-cfg-if = "1"
-leptos = { git = "https://github.com/leptos-rs/leptos", default-features = false, features = ["serde"] }
+http = "0.2.8"
+leptos = { git = "https://github.com/leptos-rs/leptos", default-features = false, features = ["serde", "tracing"] }
 leptos_axum = { git = "https://github.com/leptos-rs/leptos", optional = true }
 leptos_meta = { git = "https://github.com/leptos-rs/leptos", default-features = false }
 leptos_router = { git = "https://github.com/leptos-rs/leptos", default-features = false }
 log = "0.4"
+reqwest = { version = "0.11.14", features = ["json"] }
 serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.93"
 simple_logger = "4"
+thiserror = "1.0.38"
 tokio = { version = "1.25.0", optional = true }
 tower = { version = "0.4.13", optional = true }
 tower-http = { version = "0.3.5", features = ["fs"], optional = true }
+tracing = "0.1.37"
+urlencoding = "2.1.2"
+uuid = { version = "1.3.0", features = ["js", "v4", "serde"] }
 wasm-bindgen = "0.2"
-thiserror = "1.0.38"
-tracing = { version = "0.1.37", optional = true }
-http = "0.2.8"
 
 [features]
+default=["ssr"]
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
-ssr = [
-    "dep:axum", 
-    "dep:tokio", 
-    "dep:tower", 
-    "dep:tower-http", 
-    "dep:leptos_axum", 
-    "leptos/ssr", 
-    "leptos_meta/ssr", 
-    "leptos_router/ssr", 
-    "dep:tracing"
-]
+ssr = ["dep:axum", "dep:tokio", "dep:tower", "dep:tower-http", "dep:leptos_axum", "leptos/ssr", "leptos_meta/ssr", "leptos_router/ssr"]
 
 [package.metadata.cargo-all-features]
 denylist = [
